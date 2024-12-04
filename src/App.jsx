@@ -3,6 +3,7 @@ import styled, { ThemeProvider, keyframes } from "styled-components";
 import Calendar from "react-calendar";
 import "react-calendar/dist/Calendar.css";
 import GoalifyLogo from "./assets/GoalifyLogo.png"; // Verifique o caminho do logo
+import HamburgerMenu from "./HamburgerMenu.jsx";
 
 // Tema de cores para o Goalify
 const theme = {
@@ -30,6 +31,7 @@ const fadeIn = keyframes`
 
 function App() {
   const [showForm, setShowForm] = useState(false);
+  const [editGoalIndex, setEditGoalIndex] = useState(null); // Índice da meta em edição
   const [newGoal, setNewGoal] = useState({
     title: "",
     description: "",
@@ -41,10 +43,10 @@ function App() {
   const [goals, setGoals] = useState([
     { title: "Meta Hoje 1", date: new Date(), priority: theme.lowPriority, progress: 20 },
     { title: "Meta Hoje 2", date: new Date(), priority: theme.highPriority, progress: 50 },
-    { title: "Meta Exemplo 3", date: new Date(2024, 10, 8), priority: theme.mediumPriority, progress: 30 },
-    { title: "Meta Exemplo 4", date: new Date(2024, 10, 15), priority: theme.highPriority, progress: 0 },
-    { title: "Meta Exemplo 5", date: new Date(2024, 10, 20), priority: theme.lowPriority, progress: 80 },
-    { title: "Meta Exemplo 6", date: new Date(2024, 10, 25), priority: theme.mediumPriority, progress: 90 },
+    { title: "Meta Hoje 3", date: new Date(), priority: theme.mediumPriority, progress: 80 },
+    { title: "Meta Futuro 1", date: new Date(2024, 10, 8), priority: theme.lowPriority, progress: 30 },
+    { title: "Meta Futuro 2", date: new Date(2024, 10, 15), priority: theme.highPriority, progress: 0 },
+    { title: "Meta Futuro 3", date: new Date(2024, 10, 20), priority: theme.mediumPriority, progress: 90 },
   ]);
 
   const today = new Date();
@@ -64,6 +66,43 @@ function App() {
     };
     setGoals([...goals, goal]);
     setShowForm(false);
+    if (!newGoal.title || !newGoal.date) {
+      alert("Por favor, preencha os campos obrigatórios.");
+      return;
+    }
+  };
+
+  const updateGoal = () => {
+    if (editGoalIndex !== null) {
+      const updatedGoals = [...goals];
+      updatedGoals[editGoalIndex] = {
+        ...updatedGoals[editGoalIndex],
+        ...newGoal,
+        date: new Date(newGoal.date),
+      };
+      setGoals(updatedGoals);
+      setEditGoalIndex(null);
+      setShowForm(false);
+    }
+  };
+
+  const editGoal = (index) => {
+    const goal = goals[index];
+    setNewGoal({
+      title: goal.title,
+      description: goal.description || "",
+      date: goal.date.toISOString().split("T")[0],
+      time: goal.time || "",
+      repetition: goal.repetition || "",
+      priority: goal.priority,
+    });
+    setEditGoalIndex(index);
+    setShowForm(true);
+  };
+
+  const deleteGoal = (index) => {
+    const updatedGoals = goals.filter((_, i) => i !== index);
+    setGoals(updatedGoals);
   };
 
   const completeGoal = (index) => {
@@ -74,7 +113,9 @@ function App() {
 
   const tileClassName = ({ date, view }) => {
     if (view === "month") {
+      const isToday = date.toDateString() === today.toDateString();
       const goal = goals.find((goal) => goal.date.toDateString() === date.toDateString());
+      if (isToday) return "today"; // Classe personalizada para o dia atual
       return goal ? goal.priority : null;
     }
   };
@@ -89,24 +130,21 @@ function App() {
           <Logo src={GoalifyLogo} alt="Goalify Logo" />
           <Title>Gerencie suas Metas</Title>
         </LogoContainer>
+        <HamburgerMenu />
         <MainContent>
           <AddButton onClick={openForm}>+</AddButton>
           {showForm && (
             <FormContainer>
-              <FormTitle>Nova Meta</FormTitle>
+              <FormTitle>{editGoalIndex !== null ? "Editar Meta" : "Nova Meta"}</FormTitle>
               <Form>
                 <FormLabel>Nome da Meta</FormLabel>
                 <FormInput type="text" name="title" value={newGoal.title} onChange={handleInputChange} />
-                
                 <FormLabel>Descrição</FormLabel>
                 <FormInput type="text" name="description" value={newGoal.description} onChange={handleInputChange} />
-                
                 <FormLabel>Data</FormLabel>
                 <FormInput type="date" name="date" value={newGoal.date} onChange={handleInputChange} />
-                
                 <FormLabel>Horário</FormLabel>
                 <FormInput type="time" name="time" value={newGoal.time} onChange={handleInputChange} />
-                
                 <FormLabel>Repetição</FormLabel>
                 <FormSelect name="repetition" value={newGoal.repetition} onChange={handleInputChange}>
                   <option value="">Selecione...</option>
@@ -114,15 +152,15 @@ function App() {
                   <option value="weekly">Toda semana neste dia</option>
                   <option value="monthly">Todo mês neste dia</option>
                 </FormSelect>
-
                 <FormLabel>Prioridade</FormLabel>
                 <FormSelect name="priority" value={newGoal.priority} onChange={handleInputChange}>
                   <option value={theme.lowPriority}>Baixa</option>
                   <option value={theme.mediumPriority}>Média</option>
                   <option value={theme.highPriority}>Alta</option>
                 </FormSelect>
-
-                <SubmitButton onClick={addGoal} color={theme.buttonGreen}>Adicionar Meta</SubmitButton>
+                <SubmitButton onClick={editGoalIndex !== null ? updateGoal : addGoal} color={theme.buttonGreen}>
+                  {editGoalIndex !== null ? "Atualizar Meta" : "Adicionar Meta"}
+                </SubmitButton>
               </Form>
             </FormContainer>
           )}
@@ -139,7 +177,11 @@ function App() {
                       <ProgressBar width={goal.progress} />
                       <ProgressText>{goal.progress}%</ProgressText>
                     </Progress>
-                    <CompleteButton onClick={() => completeGoal(index)}>Concluir Meta</CompleteButton>
+                    <ButtonContainer>
+                      <EditButton onClick={() => editGoal(index)}>Editar</EditButton>
+                      <CompleteButton onClick={() => completeGoal(index)}>Concluir</CompleteButton>
+                      <DeleteButton onClick={() => deleteGoal(index)}>Excluir</DeleteButton>
+                    </ButtonContainer>
                   </GoalDetails>
                 </GoalCard>
               ))}
@@ -156,7 +198,11 @@ function App() {
                       <ProgressBar width={goal.progress} />
                       <ProgressText>{goal.progress}%</ProgressText>
                     </Progress>
-                    <CompleteButton onClick={() => completeGoal(index)}>Concluir Meta</CompleteButton>
+                    <ButtonContainer>
+                      <EditButton onClick={() => editGoal(index)}>Editar</EditButton>
+                      <CompleteButton onClick={() => completeGoal(index)}>Concluir</CompleteButton>
+                      <DeleteButton onClick={() => deleteGoal(index)}>Excluir</DeleteButton>
+                    </ButtonContainer>
                   </GoalDetails>
                 </GoalCard>
               ))}
@@ -168,6 +214,7 @@ function App() {
     </ThemeProvider>
   );
 }
+
 
 // Estilos com styled-components
 const AppContainer = styled.div`
@@ -296,17 +343,30 @@ const GoalSection = styled.div`
   flex-wrap: wrap;
   gap: 10px;
   justify-content: space-between;
+  max-width: 100%;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
 `;
 
 const GoalCard = styled.div`
   background-color: ${(props) => props.theme.cardBackground};
   padding: 15px;
   border-radius: 8px;
-  width: 30%;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
+
+  /* Mantém 3 colunas em telas maiores */
+  @media (max-width: 768px) {
+    width: calc(33.33% - 10px); /* Três colunas também em tablets */
+  }
+
+  /* Ajusta para uma coluna em telas muito pequenas */
+  @media (max-width: 480px) {
+    width: 100%; /* Uma coluna */
+  }
 `;
+
 
 const GoalTitle = styled.h4`
   font-size: 16px;
@@ -338,6 +398,7 @@ const ProgressBar = styled.div`
   height: 100%;
   width: ${(props) => props.width || 0}%;
   border-radius: 5px;
+  transition: width 0.3s ease;
 `;
 
 const ProgressText = styled.div`
@@ -349,11 +410,10 @@ const ProgressText = styled.div`
 `;
 
 const CompleteButton = styled.button`
-  margin-top: 10px;
-  padding: 5px;
+  padding: 5px 10px;
   font-size: 12px;
-  color: ${(props) => props.theme.buttonGreen};
-  background-color: transparent;
+  color: #FFFFFF;
+  background-color: ${(props) => props.theme.buttonGreen};
   border: none;
   cursor: pointer;
 `;
@@ -364,7 +424,7 @@ const StyledCalendar = styled(Calendar)`
   background-color: ${(props) => props.theme.cardBackground};
   border: none;
   color: #4CAF50;
-  
+
   .react-calendar__tile--active {
     background-color: ${(props) => props.theme.buttonGreen} !important;
   }
@@ -375,6 +435,39 @@ const StyledCalendar = styled(Calendar)`
     align-items: center;
     justify-content: center;
   }
+
+  .today {
+    background-color: #76c893; /* Verde claro */
+    color: #000; /* Número do dia em preto */
+    border-radius: 8px;
+    font-weight: bold;
+  }
+`;
+
+const ButtonContainer = styled.div`
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+`;
+
+const EditButton = styled.button`
+  padding: 5px 10px;
+  font-size: 12px;
+  color: #ffffff;
+  background-color: #ff9800;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+`;
+
+const DeleteButton = styled.button`
+  padding: 5px 10px;
+  font-size: 12px;
+  color: #ffffff;
+  background-color: #f44336;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
 `;
 
 export default App;
